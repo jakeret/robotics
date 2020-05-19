@@ -84,6 +84,10 @@ def run_training(data_path, log_path, output_path, **hyperparams):
     log_path = Path(log_path) / start_time
 
     with mlflow.start_run():
+        mlflow.set_tag("start_time", start_time)
+        mlflow.set_tag("output_path", output_path)
+        mlflow.set_tag("log_path", log_path)
+
         mlflow.log_params(hyperparams)
 
         model = create_model(**hyperparams)

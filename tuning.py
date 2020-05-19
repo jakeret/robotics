@@ -7,7 +7,7 @@ import robotics
 
 
 def tune_model(data_path="", log_path="logs", output_path="model",
-               learning_rate=0.001, batch_size=32, epochs=10):
+               learning_rate=0.001, batch_size=256, epochs=20):
     param_grid = dict(
         depth=[3, 4, 5],
         kernel_size=[3, 4, 5, 6],
