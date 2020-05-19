@@ -20,7 +20,7 @@ MAX_SAMPLES = 1_000_000
 SAMPLING_RATE = 5
 
 
-def create_model(depth = 5, kernel_size = 4, filters = 64, dropout_rate = 0.2, **kwargs):
+def create_model(depth = 5, kernel_size = 4, filters = 64, dropout_rate = 0.2, **__):
     print(f"Input sequence lenght: {SEQUENCE_LENGHT}, "
           f"model receptive field: {tcn.receptive_field_size(kernel_size, depth)}")
 
@@ -42,11 +42,13 @@ def create_model(depth = 5, kernel_size = 4, filters = 64, dropout_rate = 0.2, *
     return model
 
 
-def train(model, train_dataset, test_dataset, log_path, output_path, **hyperparams):
+def train(model, train_dataset, test_dataset, log_path, output_path,
+          learning_rate=0.001, batch_size=32, epochs=5, **__):
+
     print("Training samples: ", tf.data.experimental.cardinality(train_dataset).numpy())
     print("Test samples: ", tf.data.experimental.cardinality(test_dataset).numpy())
 
-    model.compile(optimizers.Adam(learning_rate=hyperparams["learning_rate"]),
+    model.compile(optimizers.Adam(learning_rate=learning_rate),
                   loss='mae',
                   metrics=[metrics.mean_absolute_error,
                            metrics.mean_squared_error,
@@ -54,10 +56,10 @@ def train(model, train_dataset, test_dataset, log_path, output_path, **hyperpara
                            ])
     model.summary()
 
-    model.fit(train_dataset.batch(hyperparams["batch_size"]),
-              validation_data=test_dataset.batch(hyperparams["batch_size"]),
+    model.fit(train_dataset.batch(batch_size),
+              validation_data=test_dataset.batch(batch_size),
               callbacks=build_callbacks(log_path, output_path),
-              epochs=hyperparams["epochs"])
+              epochs=epochs)
 
     return model
 
