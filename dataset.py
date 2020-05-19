@@ -42,9 +42,11 @@ def load_data(path, sequence_lenght, offset, max_samples, sampling_rate, normali
     return sequences, targets
 
 
-def load_datasets(sequence_lenght, offset, train_data_path, test_data_path, max_samples, sampling_rate):
-    x_train, y_train = load_data(train_data_path, sequence_lenght, offset, max_samples, sampling_rate)
-    x_test, y_test = load_data(test_data_path, sequence_lenght, offset, max_samples, sampling_rate)
+def load_datasets(sequence_lenght, offset, train_data_path, test_data_path, max_samples, sampling_rate, normalize_inputs):
+    x_train, y_train = load_data(train_data_path,
+                                 sequence_lenght, offset, max_samples, sampling_rate, normalize_inputs)
+    x_test, y_test = load_data(test_data_path,
+                               sequence_lenght, offset, max_samples, sampling_rate, normalize_inputs)
 
     train_dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train)).shuffle(1000)
     validation_dataset = tf.data.Dataset.from_tensor_slices((x_test, y_test)).shuffle(1000)
