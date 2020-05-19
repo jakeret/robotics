@@ -42,11 +42,11 @@ def create_model(depth = 5, kernel_size = 4, filters = 64, dropout_rate = 0.2, *
     return model
 
 
-def train(model, train_dataset, test_dataset, log_path, output_path,
+def train(model, train_dataset, validation_dataset, log_path: Path, output_path: Path,
           learning_rate=0.001, batch_size=32, epochs=5, **__):
 
-    print("Training samples: ", tf.data.experimental.cardinality(train_dataset).numpy())
-    print("Test samples: ", tf.data.experimental.cardinality(test_dataset).numpy())
+    # print("Training samples: ", tf.data.experimental.cardinality(train_dataset).numpy())
+    # print("Validation samples: ", tf.data.experimental.cardinality(validation_dataset).numpy())
 
     model.compile(optimizers.Adam(learning_rate=learning_rate),
                   loss='mae',
@@ -54,67 +54,72 @@ def train(model, train_dataset, test_dataset, log_path, output_path,
                            metrics.mean_squared_error,
                            metrics.RootMeanSquaredError()
                            ])
-    model.summary()
+    # model.summary()
 
     model.fit(train_dataset.batch(batch_size),
-              validation_data=test_dataset.batch(batch_size),
+              validation_data=validation_dataset.batch(batch_size),
               callbacks=build_callbacks(log_path, output_path),
               epochs=epochs)
 
     return model
 
 
-def build_callbacks(log_path, output_path):
+def build_callbacks(log_path: Path, output_path:Path):
     return [
-        ModelCheckpoint(output_path, save_best_only=True),
-        TensorBoard(str(Path(log_path) / datetime.now().strftime("%Y-%m-%dT%H-%M_%S")))
+        ModelCheckpoint(str(output_path), save_best_only=True),
+        TensorBoard(str(log_path))
     ]
 
 
 def run_training(data_path, log_path, output_path, **hyperparams):
-    train_dataset, test_dataset = dataset.load_datasets(SEQUENCE_LENGHT, OFFSET,
+    train_dataset, validation_dataset = dataset.load_datasets(SEQUENCE_LENGHT, OFFSET,
                                                         train_data_path=Path(data_path) / "train.txt",
                                                         test_data_path=Path(data_path) / "test.txt",
                                                         max_samples=MAX_SAMPLES,
-                                                        sampling_rate=SAMPLING_RATE)
+                                                        sampling_rate=SAMPLING_RATE,
+                                                        normalize_inputs=hyperparams.get("normalize_inputs", False))
+
+    start_time = datetime.now().strftime("%Y-%m-%dT%H-%M_%S")
+    output_path = Path(output_path) / start_time
+    log_path = Path(log_path) / start_time
 
     with mlflow.start_run():
         mlflow.log_params(hyperparams)
 
         model = create_model(**hyperparams)
 
-        train(model, train_dataset, test_dataset, log_path, output_path, **hyperparams)
+        train(model, train_dataset, validation_dataset, log_path, output_path, **hyperparams)
 
-        log_metrics(model, train_dataset, test_dataset, hyperparams)
+        log_metrics(model, train_dataset, validation_dataset, **hyperparams)
 
-        log_predictions(model, output_path, test_dataset, train_dataset)
+        log_predictions(model, output_path, validation_dataset, train_dataset)
 
         log_model(model, output_path)
 
 
 def log_model(model, output_path):
-    model_path = str(Path(output_path) / datetime.now().strftime("%Y-%m-%dT%H-%M_%S"))
+    model_path = output_path / "model"
     model.save(model_path)
     mlflow.log_artifact(model_path)
 
 
-def log_predictions(model, output_path, test_dataset, train_dataset):
-    plot_path = Path(output_path) / "predictions_train.png"
+def log_predictions(model, output_path: Path, validation_dataset, train_dataset):
+    plot_path = output_path / "predictions_train.png"
     plotting.plot_predictions(train_dataset.batch(250), model, plot_path)
     mlflow.log_artifact(plot_path)
-    plot_path = Path(output_path) / "predictions_test.png"
-    plotting.plot_predictions(test_dataset.batch(250), model, plot_path)
+    plot_path = output_path / "predictions_validation.png"
+    plotting.plot_predictions(validation_dataset.batch(250), model, plot_path)
     mlflow.log_artifact(plot_path)
 
 
-def log_metrics(model, train_dataset, test_dataset, hyperparams):
+def log_metrics(model, train_dataset, validation_dataset, batch_size, **__):
     mlflow.log_metrics(
         model.evaluate(train_dataset
-                       .batch(hyperparams["batch_size"]),
+                       .batch(batch_size),
                        return_dict=True))
 
-    validation_metrics = model.evaluate(test_dataset
-                                        .batch(hyperparams["batch_size"]),
+    validation_metrics = model.evaluate(validation_dataset
+                                        .batch(batch_size),
                                         return_dict=True)
     mlflow.log_metrics({"val_"+key: metric for key, metric in validation_metrics.items()})
 
@@ -130,6 +135,7 @@ def _parse_cli_arguments():
     parser.add_argument('--kernel_size', type=int, default=4)
     parser.add_argument('--filters', type=int, default=64)
     parser.add_argument('--dropout_rate', type=float, default=0.2)
+    parser.add_argument('--normalize_inputs', type=bool, default=False)
 
     parser.add_argument('--learning_rate', type=int, default=0.001)
     parser.add_argument('--batch_size', type=int, default=32)
