@@ -10,6 +10,7 @@ from tensorflow.keras import metrics
 from tensorflow.keras import optimizers
 from tensorflow.keras.callbacks import TensorBoard, ModelCheckpoint
 
+import plotting
 import tcn
 import dataset
 
@@ -63,27 +64,45 @@ def train(model, train_dataset, test_dataset, log_path, output_path, **hyperpara
 
 def build_callbacks(log_path, output_path):
     return [
-        ModelCheckpoint(output_path),
+        ModelCheckpoint(output_path, save_best_only=True),
         TensorBoard(str(Path(log_path) / datetime.now().strftime("%Y-%m-%dT%H-%M_%S")))
     ]
 
 
 def run_training(data_path, log_path, output_path, **hyperparams):
     train_dataset, test_dataset = dataset.load_datasets(SEQUENCE_LENGHT, OFFSET,
-                                                        train_data_path=Path(data_path) / "test.txt",
+                                                        train_data_path=Path(data_path) / "train.txt",
                                                         test_data_path=Path(data_path) / "test.txt",
                                                         max_samples=MAX_SAMPLES,
                                                         sampling_rate=SAMPLING_RATE)
 
     with mlflow.start_run():
         mlflow.log_params(hyperparams)
+
         model = create_model(**hyperparams)
 
         train(model, train_dataset, test_dataset, log_path, output_path, **hyperparams)
 
         log_metrics(model, train_dataset, test_dataset, hyperparams)
 
-        model.save(output_path)
+        log_predictions(model, output_path, test_dataset, train_dataset)
+
+        log_model(model, output_path)
+
+
+def log_model(model, output_path):
+    model_path = str(Path(output_path) / datetime.now().strftime("%Y-%m-%dT%H-%M_%S"))
+    model.save(model_path)
+    mlflow.log_artifact(model_path)
+
+
+def log_predictions(model, output_path, test_dataset, train_dataset):
+    plot_path = Path(output_path) / "predictions_train.png"
+    plotting.plot_predictions(train_dataset.batch(250), model, plot_path)
+    mlflow.log_artifact(plot_path)
+    plot_path = Path(output_path) / "predictions_test.png"
+    plotting.plot_predictions(test_dataset.batch(250), model, plot_path)
+    mlflow.log_artifact(plot_path)
 
 
 def log_metrics(model, train_dataset, test_dataset, hyperparams):

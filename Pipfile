@@ -11,6 +11,7 @@ numpy = ">=1.18.1"
 jupyterlab = "*"
 seaborn = "*"
 mlflow = "*"
+scikit-learn = "*"
 
 [requires]
 python_version = "3.7"
