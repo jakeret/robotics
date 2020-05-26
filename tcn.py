@@ -22,8 +22,11 @@ class ResidualBlock(layers.Layer):
                  activation: str,
                  **kwargs):
         super(ResidualBlock, self).__init__(**kwargs)
-
         self.filters = filters
+        self.kernel_size = kernel_size
+        self.dilation_rate = dilation_rate
+        self.dropout_rate = dropout_rate
+        self.activation = activation
 
         self.causal_conv_1 = layers.Conv1D(filters=self.filters,
                                            kernel_size=kernel_size,
@@ -72,6 +75,15 @@ class ResidualBlock(layers.Layer):
         x = self.activation_3(x + skip)
         return x
 
+    def get_config(self):
+        return dict(filters=self.filters,
+                    kernel_size=self.kernel_size,
+                    dilation_rate=self.dilation_rate,
+                    dropout_rate=self.dropout_rate,
+                    activation=self.activation,
+                    **super(ResidualBlock, self).get_config()
+                    )
+
 
 class TCN(layers.Layer):
     """
@@ -94,14 +106,17 @@ class TCN(layers.Layer):
                  **kwargs):
 
         super(TCN, self).__init__(**kwargs)
-        self.blocks = []
-        self.depth = len(filters)
+        self.filters = filters
         self.kernel_size = kernel_size
         self.return_sequence = return_sequence
+        self.dropout_rate = dropout_rate
+        self.activation = activation
+
+        self._blocks = []
 
         for i in range(self.depth):
             dilation_size = 2 ** i
-            self.blocks.append(
+            self._blocks.append(
                 ResidualBlock(filters=filters[i],
                               kernel_size=kernel_size,
                               dilation_rate=dilation_size,
@@ -115,12 +130,25 @@ class TCN(layers.Layer):
 
     def call(self, inputs, training=None, **kwargs):
         x = inputs
-        for block in self.blocks:
+        for block in self._blocks:
             x = block(x)
 
         if not self.return_sequence:
             x = self.slice_layer(x)
         return x
+
+    def get_config(self):
+        return dict(filters=self.filters,
+                    kernel_size=self.kernel_size,
+                    return_sequence=self.return_sequence,
+                    dropout_rate=self.dropout_rate,
+                    activation=self.activation,
+                    **super(TCN, self).get_config()
+                    )
+
+    @property
+    def depth(self):
+        return len(self.filters)
 
     @property
     def receptive_field_size(self):
@@ -136,7 +164,7 @@ def build_model(sequence_length: int,
                 filters: List[int],
                 num_classes:int,
                 kernel_size: int,
-                return_sequence:bool = False):
+                return_sequence:bool = False) -> Model:
     """
     Builds a simple TCN model for a classification task
 
