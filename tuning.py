@@ -5,20 +5,19 @@ from sklearn.model_selection import ParameterGrid
 
 import robotics
 
+PARAM_GRID = dict(
+    depth=[3, 4, 5],
+    kernel_size=[3, 4, 5, 6],
+    filters=[16, 32, 64, 96, 128, 256],
+    dropout_rate=np.arange(0.0, 0.751, 0.25),
+    normalize_inputs=[True, False]
+)
+
 
 def tune_model(data_path="", log_path="logs", output_path="model",
-               learning_rate=0.001, batch_size=256, epochs=20, skip_params_unil=0):
-    param_grid = dict(
-        depth=[3, 4, 5],
-        kernel_size=[3, 4, 5, 6],
-        filters=[16, 32, 64, 96, 128, 256],
-        dropout_rate=np.arange(0.0, 0.751, 0.25),
-        normalize_inputs=[True, False]
-    )
+               learning_rate=0.001, batch_size=256, epochs=20):
 
-    for i, hyperparams in enumerate(ParameterGrid(param_grid)):
-        if i < skip_params_unil:
-            continue
+    for i, hyperparams in enumerate(ParameterGrid(PARAM_GRID)):
         print(i, hyperparams)
         robotics.run_training(data_path, log_path, output_path,
                               learning_rate=learning_rate, batch_size=batch_size, epochs=epochs,
