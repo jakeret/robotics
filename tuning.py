@@ -3,6 +3,7 @@ import argparse
 import numpy as np
 from sklearn.model_selection import ParameterGrid
 
+import modelling
 import robotics
 
 PARAM_GRID = dict(
@@ -20,8 +21,11 @@ def tune_model(data_path="", log_path="logs", output_path="model",
     for i, hyperparams in enumerate(ParameterGrid(PARAM_GRID)):
         print(i, hyperparams)
         robotics.run_training(data_path, log_path, output_path,
-                              learning_rate=learning_rate, batch_size=batch_size, epochs=epochs,
-                              **hyperparams)
+                              modelling.TCNHyperparams(learning_rate=learning_rate,
+                                                       batch_size=batch_size,
+                                                       epochs=epochs,
+                                                       **hyperparams)
+                              )
 
 
 def _parse_cli_arguments():
@@ -31,7 +35,7 @@ def _parse_cli_arguments():
     parser.add_argument('--output-path', type=str, default="model")
     parser.add_argument('--log-path', type=str, default="logs")
 
-    parser.add_argument('--learning_rate', type=int, default=0.001)
+    parser.add_argument('--learning_rate', type=int, default=modelling.Hyperparams.learning_rate)
     parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--epochs', type=int, default=20)
 
